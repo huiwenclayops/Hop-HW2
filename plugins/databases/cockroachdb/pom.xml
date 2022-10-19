@@ -32,13 +32,13 @@
             <scope>compile</scope>
             <version>${project.version}</version>
         </dependency>
-        <dependency>
+        <!--<dependency>
             <groupId>org.apache.hop</groupId>
             <artifactId>hop-databases-postgresql</artifactId>
             <version>${project.version}</version>
             <type>test-jar</type>
             <scope>test</scope>
-        </dependency>
+        </dependency>-->
     </dependencies>
 
     <packaging>jar</packaging>
@@ -61,7 +61,7 @@
     <dependencyManagement>
         <dependencies>
             <!-- test dependencies -->
-            <dependency>
+            <!--<dependency>
                 <groupId>org.apache.hop</groupId>
                 <artifactId>hop-databases-postgresql</artifactId>
                 <scope>test</scope>
@@ -73,7 +73,7 @@
                 <type>test-jar</type>
                 <scope>test</scope>
                 <version>${project.version}</version>
-            </dependency>
+            </dependency>-->
         </dependencies>
     </dependencyManagement>
 

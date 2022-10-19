@@ -69,7 +69,7 @@
       <version>${project.version}</version>
       <scope>compile</scope>
     </dependency>
-    <dependency>
+    <!--<dependency>
       <groupId>org.apache.hop</groupId>
       <artifactId>hop-engine</artifactId>
       <version>${project.version}</version>
@@ -82,7 +82,7 @@
       <version>${project.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
-    </dependency>
+    </dependency>-->
     <dependency>
       <groupId>org.apache.hop</groupId>
       <artifactId>hop-plugins-misc-projects</artifactId>
@@ -115,7 +115,7 @@
         <scope>test</scope>
       </dependency>
 
-      <dependency>
+      <!--<dependency>
         <groupId>org.apache.hop</groupId>
         <artifactId>hop-engine</artifactId>
         <version>${project.version}</version>
@@ -129,7 +129,7 @@
         <version>${project.version}</version>
         <type>test-jar</type>
         <scope>test</scope>
-      </dependency>
+      </dependency>-->
 
     </dependencies>
   </dependencyManagement>

@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Map;
 
 import com.google.common.annotations.VisibleForTesting;
+import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.vfs2.FileObject;
 import org.apache.commons.vfs2.provider.local.LocalFile;
 import org.apache.hop.core.Const;
@@ -38,6 +39,10 @@ import org.apache.hop.core.util.Utils;
 import org.apache.hop.core.vfs.HopVfs;
 import org.apache.hop.pipeline.transform.ITransformData;
 import org.apache.hop.pipeline.transform.ITransformMeta;
+import org.apache.poi.hssf.usermodel.HSSFCell;
+import org.apache.poi.hssf.usermodel.HSSFRow;
+import org.apache.poi.hssf.usermodel.HSSFSheet;
+import org.apache.poi.hssf.usermodel.HSSFWorkbook;
 import org.apache.poi.xssf.usermodel.*;
 import org.apache.hop.core.exception.HopException;
 import org.apache.hop.core.exception.HopTransformException;
@@ -58,6 +63,8 @@ public class ReadExcelHeader extends BaseTransform<ReadExcelHeaderMeta, ReadExce
 
   InputStream file1InputStream = null;
   XSSFWorkbook workbook1 = null;
+
+  HSSFWorkbook workbook2 = null;
 
   private String filePath;
 
@@ -426,16 +433,30 @@ public class ReadExcelHeader extends BaseTransform<ReadExcelHeaderMeta, ReadExce
     filePath = (filePath.contains("file://") ? filePath.substring(7) : filePath);
     logDebug("cleansed filepath is: " + filePath);
 
+    int xlsFile = 0;
+
     try {
       // String tempfilename = KettleVFS.getFilename(filePath);
       FileObject fileObject = HopVfs.getFileObject(HopVfs.getFilename(data.file));
+
       if (fileObject instanceof LocalFile) {
         //This might reduce memory usage
         logDebug("Local file");
         String localFilename = HopVfs.getFilename(fileObject);
         File excelFile = new File(localFilename);
         file1InputStream = new FileInputStream(excelFile);
-        workbook1 = new XSSFWorkbook(file1InputStream);
+
+        if (FilenameUtils.isExtension(filePath,"xls")) {
+          //System.console().printf(" xls file");
+          workbook2 = new HSSFWorkbook(file1InputStream);
+          xlsFile = 1;
+
+        } else {
+          //System.console().printf(" xlsx file");
+          workbook1 = new XSSFWorkbook(file1InputStream);
+        }
+
+        //workbook1 = new XSSFWorkbook(file1InputStream);
       } else {
         logDebug("VFS file");
         file1InputStream = HopVfs.getInputStream(HopVfs.getFilename(data.file));
@@ -449,135 +470,275 @@ public class ReadExcelHeader extends BaseTransform<ReadExcelHeaderMeta, ReadExce
       throw new HopTransformException("Couldn't read file provided");
     }
 
-    if (workbook1 == null) {
-      log.logDebug("Supplied file: " + filePath);
-      throw new HopTransformException("Could not read the file provided.");
-    }
+    if (xlsFile == 0) {
 
-    for (int i = 0; i < workbook1.getNumberOfSheets(); i++) {
-      XSSFSheet sheet;
-      XSSFRow row;
-
-      try {
-        sheet = workbook1.getSheetAt(i);
-      } catch (Exception e) {
-        log.logError("Unable to read sheet\n" + e.getMessage());
-        throw new HopTransformException("Could not read sheet with number: " + i);
+      if (workbook1 == null) {
+        log.logDebug("Supplied file: " + filePath);
+        throw new HopTransformException("Could not read the file provided.");
       }
-      try {
-        row = sheet.getRow(startRow);
-        log.logDebug("Found a sheet with the corresponding header row (from/to): " + row.getFirstCellNum() + "/"
-                + row.getLastCellNum());
-      } catch (Exception e) {
-        log.logDebug("Unable to read row.\nMaybe the row given is empty.\n Providing empty row.");
-        Object[] outputRow = RowDataUtil.createResizedCopy(r, data.outputRowMeta.size());
-        int lastMeta = data.outputRowMeta.size();
-        outputRow[lastMeta - 5] = (new File(filePath)).getName();
-        log.logRowlevel("Got workbook name: " + outputRow[lastMeta - 5] + " setting in "
-                + String.valueOf(lastMeta - 5));
-        outputRow[lastMeta - 4] = workbook1.getSheetName(i);
-        log.logRowlevel(
-                "Got sheet name: " + outputRow[lastMeta - 4] + " setting in " + String.valueOf(lastMeta - 4));
-        outputRow[lastMeta - 3] = "NO DATA";
-        outputRow[lastMeta - 2] = "NO DATA";
-        outputRow[lastMeta - 1] = "NO DATA";
+
+      for (int i = 0; i < workbook1.getNumberOfSheets(); i++) {
+        XSSFSheet sheet;
+        XSSFRow row;
 
         try {
-          workbook1.close();
-          // file1InputStream.close();
-        } catch (Exception wce) {
-          new HopException("Could not dispose workbook.\n" + wce.getMessage());
+          sheet = workbook1.getSheetAt(i);
+        } catch (Exception e) {
+          log.logError("Unable to read sheet\n" + e.getMessage());
+          throw new HopTransformException("Could not read sheet with number: " + i);
         }
         try {
-          file1InputStream.close();
-        } catch (IOException fce) {
-          new HopException("Could not dispose FileInputStream.\n" + fce.getMessage());
-        }
-        continue;
-        // throw new KettleStepException("Could not read row with startrow: " +
-        // startRow);
-      }
-      for (short j = row.getFirstCellNum(); j < row.getLastCellNum(); j++) {
-        // generate output row, make it correct size
-        Object[] outputRow = RowDataUtil.createResizedCopy(r, data.outputRowMeta.size());
-
-        int lastMeta = data.outputRowMeta.size();
-        try {
-          log.logRowlevel("Processing the next cell with number: " + j);
-          outputRow[lastMeta - 5] = data.file;
+          row = sheet.getRow(startRow);
+          log.logDebug("Found a sheet with the corresponding header row (from/to): " + row.getFirstCellNum() + "/"
+                  + row.getLastCellNum());
+        } catch (Exception e) {
+          log.logDebug("Unable to read row.\nMaybe the row given is empty.\n Providing empty row.");
+          Object[] outputRow = RowDataUtil.createResizedCopy(r, data.outputRowMeta.size());
+          int lastMeta = data.outputRowMeta.size();
+          outputRow[lastMeta - 5] = (new File(filePath)).getName();
           log.logRowlevel("Got workbook name: " + outputRow[lastMeta - 5] + " setting in "
                   + String.valueOf(lastMeta - 5));
-        } catch (Exception e) {
-          log.logError("Some error while getting the file string" + data.file);
-
-          log.logError(e.getMessage());
-          throw new HopTransformException(e.getMessage());
-        }
-        try {
           outputRow[lastMeta - 4] = workbook1.getSheetName(i);
-          log.logRowlevel("Got sheet name: " + outputRow[lastMeta - 4] + " setting in "
-                  + String.valueOf(lastMeta - 4));
-        } catch (Exception e) {
-          log.logError("Some error while getting the values. With Sheetnumber:" + String.valueOf(i));
-
-          log.logError(e.getMessage());
-          throw new HopTransformException(e.getMessage());
-        }
-        try{
-          outputRow[lastMeta - 3] = row.getCell(j).toString();
-          log.logRowlevel("Got cell header: " + outputRow[lastMeta - 3] + " setting in "
-                  + String.valueOf(lastMeta - 3));
-        } catch (Exception e) {
-          log.logDebug("Some error while getting the values. With Sheetnumber:" + String.valueOf(i)
-                  + " and Column number:" + String.valueOf(j));
+          log.logRowlevel(
+                  "Got sheet name: " + outputRow[lastMeta - 4] + " setting in " + String.valueOf(lastMeta - 4));
           outputRow[lastMeta - 3] = "NO DATA";
-          // log.logError(e.getMessage());
-          // throw new KettleStepException(e.getMessage());
-        }
-
-
-        Map<String, String[]> cellInfo = new HashMap<>();
-        log.logRowlevel("Startrow is: " + startRow);
-        log.logRowlevel("Samplerows is: " + sampleRows);
-        for (int k = startRow + 1; k <= startRow + sampleRows; k++) {
-          log.logRowlevel("Going into loop for getting cell info with k= " + k);
-          try {
-            XSSFCell cell = sheet.getRow(k).getCell(row.getCell(j).getColumnIndex());
-            log.logRowlevel("Adding type and style to list: '" + cell.getCellTypeEnum().toString() + "/"
-                    + cell.getCellStyle().getDataFormatString() + "'");
-            cellInfo.put(cell.getCellTypeEnum().toString() + cell.getCellStyle().getDataFormatString(),
-                    new String[] { cell.getCellTypeEnum().toString(),
-                            cell.getCellStyle().getDataFormatString() });
-          } catch (Exception e) {
-            log.logRowlevel("Couldn't get Field info in row " + String.valueOf(k));
-          }
-        }
-        if (cellInfo.size() == 0) {
           outputRow[lastMeta - 2] = "NO DATA";
           outputRow[lastMeta - 1] = "NO DATA";
-        } else if (cellInfo.size() > 1) {
-          outputRow[lastMeta - 2] = "STRING";
-          outputRow[lastMeta - 1] = "Mixed";
-        } else {
-          String[] info = (String[]) cellInfo.values().toArray()[0];
-          outputRow[lastMeta - 2] = info[0];
-          outputRow[lastMeta - 1] = info[1];
-        }
 
-        // put the row to the output row stream
-        log.logRowlevel(
-                "Created the following row: " + Arrays.toString(outputRow) + " ;map size=" + cellInfo.size());
-        putRow(data.outputRowMeta, outputRow);
+          try {
+            workbook1.close();
+            // file1InputStream.close();
+          } catch (Exception wce) {
+            new HopException("Could not dispose workbook.\n" + wce.getMessage());
+          }
+          try {
+            file1InputStream.close();
+          } catch (IOException fce) {
+            new HopException("Could not dispose FileInputStream.\n" + fce.getMessage());
+          }
+          continue;
+          // throw new KettleStepException("Could not read row with startrow: " +
+          // startRow);
+        }
+        for (short j = row.getFirstCellNum(); j < row.getLastCellNum(); j++) {
+          // generate output row, make it correct size
+          Object[] outputRow = RowDataUtil.createResizedCopy(r, data.outputRowMeta.size());
+
+          int lastMeta = data.outputRowMeta.size();
+          try {
+            log.logRowlevel("Processing the next cell with number: " + j);
+            outputRow[lastMeta - 5] = data.file;
+            log.logRowlevel("Got workbook name: " + outputRow[lastMeta - 5] + " setting in "
+                    + String.valueOf(lastMeta - 5));
+          } catch (Exception e) {
+            log.logError("Some error while getting the file string" + data.file);
+
+            log.logError(e.getMessage());
+            throw new HopTransformException(e.getMessage());
+          }
+          try {
+            outputRow[lastMeta - 4] = workbook1.getSheetName(i);
+            log.logRowlevel("Got sheet name: " + outputRow[lastMeta - 4] + " setting in "
+                    + String.valueOf(lastMeta - 4));
+          } catch (Exception e) {
+            log.logError("Some error while getting the values. With Sheetnumber:" + String.valueOf(i));
+
+            log.logError(e.getMessage());
+            throw new HopTransformException(e.getMessage());
+          }
+          try{
+            outputRow[lastMeta - 3] = row.getCell(j).toString();
+            log.logRowlevel("Got cell header: " + outputRow[lastMeta - 3] + " setting in "
+                    + String.valueOf(lastMeta - 3));
+          } catch (Exception e) {
+            log.logDebug("Some error while getting the values. With Sheetnumber:" + String.valueOf(i)
+                    + " and Column number:" + String.valueOf(j));
+            outputRow[lastMeta - 3] = "NO DATA";
+            // log.logError(e.getMessage());
+            // throw new KettleStepException(e.getMessage());
+          }
+
+
+          Map<String, String[]> cellInfo = new HashMap<>();
+          log.logRowlevel("Startrow is: " + startRow);
+          log.logRowlevel("Samplerows is: " + sampleRows);
+          for (int k = startRow + 1; k <= startRow + sampleRows; k++) {
+            log.logRowlevel("Going into loop for getting cell info with k= " + k);
+            try {
+              XSSFCell cell = sheet.getRow(k).getCell(row.getCell(j).getColumnIndex());
+              log.logRowlevel("Adding type and style to list: '" + cell.getCellTypeEnum().toString() + "/"
+                      + cell.getCellStyle().getDataFormatString() + "'");
+              cellInfo.put(cell.getCellTypeEnum().toString() + cell.getCellStyle().getDataFormatString(),
+                      new String[] { cell.getCellTypeEnum().toString(),
+                              cell.getCellStyle().getDataFormatString() });
+            } catch (Exception e) {
+              log.logRowlevel("Couldn't get Field info in row " + String.valueOf(k));
+            }
+          }
+          if (cellInfo.size() == 0) {
+            outputRow[lastMeta - 2] = "NO DATA";
+            outputRow[lastMeta - 1] = "NO DATA";
+          } else if (cellInfo.size() > 1) {
+            outputRow[lastMeta - 2] = "STRING";
+            outputRow[lastMeta - 1] = "Mixed";
+          } else {
+            String[] info = (String[]) cellInfo.values().toArray()[0];
+            outputRow[lastMeta - 2] = info[0];
+            outputRow[lastMeta - 1] = info[1];
+          }
+
+          // put the row to the output row stream
+          log.logRowlevel(
+                  "Created the following row: " + Arrays.toString(outputRow) + " ;map size=" + cellInfo.size());
+          putRow(data.outputRowMeta, outputRow);
+        }
+        // log progress if it is time to to so
+        if (checkFeedback(getLinesRead())) {
+          logBasic("Processed Rows: " + getLinesRead()); // Some basic logging
+        }
       }
-      // log progress if it is time to to so
-      if (checkFeedback(getLinesRead())) {
-        logBasic("Processed Rows: " + getLinesRead()); // Some basic logging
+      try {
+        workbook1.close();
+      } catch (Exception e) {
+        new HopException("Could not dispose workbook.\n" + e.getMessage());
       }
+
     }
-    try {
-      workbook1.close();
-    } catch (Exception e) {
-      new HopException("Could not dispose workbook.\n" + e.getMessage());
+
+    if (xlsFile == 1) {
+
+      if (workbook2 == null) {
+        log.logDebug("Supplied file: " + filePath);
+        throw new HopTransformException("Could not read the file provided.");
+      }
+
+      for (int i = 0; i < workbook2.getNumberOfSheets(); i++) {
+        HSSFSheet sheet;
+        HSSFRow row;
+
+        try {
+          sheet = workbook2.getSheetAt(i);
+        } catch (Exception e) {
+          log.logError("Unable to read sheet\n" + e.getMessage());
+          throw new HopTransformException("Could not read sheet with number: " + i);
+        }
+        try {
+          row = sheet.getRow(startRow);
+          log.logDebug("Found a sheet with the corresponding header row (from/to): " + row.getFirstCellNum() + "/"
+                  + row.getLastCellNum());
+        } catch (Exception e) {
+          log.logDebug("Unable to read row.\nMaybe the row given is empty.\n Providing empty row.");
+          Object[] outputRow = RowDataUtil.createResizedCopy(r, data.outputRowMeta.size());
+          int lastMeta = data.outputRowMeta.size();
+          outputRow[lastMeta - 5] = (new File(filePath)).getName();
+          log.logRowlevel("Got workbook name: " + outputRow[lastMeta - 5] + " setting in "
+                  + String.valueOf(lastMeta - 5));
+          outputRow[lastMeta - 4] = workbook2.getSheetName(i);
+          log.logRowlevel(
+                  "Got sheet name: " + outputRow[lastMeta - 4] + " setting in " + String.valueOf(lastMeta - 4));
+          outputRow[lastMeta - 3] = "NO DATA";
+          outputRow[lastMeta - 2] = "NO DATA";
+          outputRow[lastMeta - 1] = "NO DATA";
+
+          try {
+            workbook2.close();
+            // file1InputStream.close();
+          } catch (Exception wce) {
+            new HopException("Could not dispose workbook.\n" + wce.getMessage());
+          }
+          try {
+            file1InputStream.close();
+          } catch (IOException fce) {
+            new HopException("Could not dispose FileInputStream.\n" + fce.getMessage());
+          }
+          continue;
+          // throw new KettleStepException("Could not read row with startrow: " +
+          // startRow);
+        }
+        for (short j = row.getFirstCellNum(); j < row.getLastCellNum(); j++) {
+          // generate output row, make it correct size
+          Object[] outputRow = RowDataUtil.createResizedCopy(r, data.outputRowMeta.size());
+
+          int lastMeta = data.outputRowMeta.size();
+          try {
+            log.logRowlevel("Processing the next cell with number: " + j);
+            outputRow[lastMeta - 5] = data.file;
+            log.logRowlevel("Got workbook name: " + outputRow[lastMeta - 5] + " setting in "
+                    + String.valueOf(lastMeta - 5));
+          } catch (Exception e) {
+            log.logError("Some error while getting the file string" + data.file);
+
+            log.logError(e.getMessage());
+            throw new HopTransformException(e.getMessage());
+          }
+          try {
+            outputRow[lastMeta - 4] = workbook2.getSheetName(i);
+            log.logRowlevel("Got sheet name: " + outputRow[lastMeta - 4] + " setting in "
+                    + String.valueOf(lastMeta - 4));
+          } catch (Exception e) {
+            log.logError("Some error while getting the values. With Sheetnumber:" + String.valueOf(i));
+
+            log.logError(e.getMessage());
+            throw new HopTransformException(e.getMessage());
+          }
+          try{
+            outputRow[lastMeta - 3] = row.getCell(j).toString();
+            log.logRowlevel("Got cell header: " + outputRow[lastMeta - 3] + " setting in "
+                    + String.valueOf(lastMeta - 3));
+          } catch (Exception e) {
+            log.logDebug("Some error while getting the values. With Sheetnumber:" + String.valueOf(i)
+                    + " and Column number:" + String.valueOf(j));
+            outputRow[lastMeta - 3] = "NO DATA";
+            // log.logError(e.getMessage());
+            // throw new KettleStepException(e.getMessage());
+          }
+
+
+          Map<String, String[]> cellInfo = new HashMap<>();
+          log.logRowlevel("Startrow is: " + startRow);
+          log.logRowlevel("Samplerows is: " + sampleRows);
+          for (int k = startRow + 1; k <= startRow + sampleRows; k++) {
+            log.logRowlevel("Going into loop for getting cell info with k= " + k);
+            try {
+              HSSFCell cell = sheet.getRow(k).getCell(row.getCell(j).getColumnIndex());
+              log.logRowlevel("Adding type and style to list: '" + cell.getCellTypeEnum().toString() + "/"
+                      + cell.getCellStyle().getDataFormatString() + "'");
+              cellInfo.put(cell.getCellTypeEnum().toString() + cell.getCellStyle().getDataFormatString(),
+                      new String[] { cell.getCellTypeEnum().toString(),
+                              cell.getCellStyle().getDataFormatString() });
+            } catch (Exception e) {
+              log.logRowlevel("Couldn't get Field info in row " + String.valueOf(k));
+            }
+          }
+          if (cellInfo.size() == 0) {
+            outputRow[lastMeta - 2] = "NO DATA";
+            outputRow[lastMeta - 1] = "NO DATA";
+          } else if (cellInfo.size() > 1) {
+            outputRow[lastMeta - 2] = "STRING";
+            outputRow[lastMeta - 1] = "Mixed";
+          } else {
+            String[] info = (String[]) cellInfo.values().toArray()[0];
+            outputRow[lastMeta - 2] = info[0];
+            outputRow[lastMeta - 1] = info[1];
+          }
+
+          // put the row to the output row stream
+          log.logRowlevel(
+                  "Created the following row: " + Arrays.toString(outputRow) + " ;map size=" + cellInfo.size());
+          putRow(data.outputRowMeta, outputRow);
+        }
+        // log progress if it is time to to so
+        if (checkFeedback(getLinesRead())) {
+          logBasic("Processed Rows: " + getLinesRead()); // Some basic logging
+        }
+      }
+
+      try {
+        workbook2.close();
+      } catch (Exception e) {
+        new HopException("Could not dispose workbook.\n" + e.getMessage());
+      }
+
     }
 
     try {

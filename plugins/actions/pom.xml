@@ -160,7 +160,7 @@
             <version>2.1.0-SNAPSHOT</version>
             <scope>compile</scope>
         </dependency>
-        <dependency>
+        <!--<dependency>
             <groupId>org.apache.hop</groupId>
             <artifactId>hop-engine</artifactId>
             <type>test-jar</type>
@@ -171,7 +171,7 @@
             <artifactId>hop-core</artifactId>
             <type>test-jar</type>
             <scope>test</scope>
-        </dependency>
+        </dependency>-->
 
         <dependency>
             <groupId>org.springframework</groupId>

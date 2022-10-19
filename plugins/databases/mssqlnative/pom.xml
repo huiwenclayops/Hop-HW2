@@ -39,12 +39,12 @@
             <scope>compile</scope>
             <version>${project.version}</version>
         </dependency>
-        <dependency>
+        <!--<dependency>
             <groupId>org.apache.hop</groupId>
             <artifactId>hop-databases-mssql</artifactId>
             <type>test-jar</type>
             <scope>test</scope>
             <version>${project.version}</version>
-        </dependency>
+        </dependency>-->
     </dependencies>
 </project>

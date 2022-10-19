@@ -917,7 +917,7 @@ public class ReadExcelHeaderDialog extends BaseTransformDialog implements ITrans
                 } else {
                   FileDialog dialog = new FileDialog(shell, SWT.OPEN);
                   //dialog.setFilterExtensions(new String[] {"*ldif;*.LDIF", "*"});
-                  dialog.setFilterExtensions(new String[] {"*.xlsx", "*"});
+                  dialog.setFilterExtensions(new String[] {"*.xlsx;*.xls", "*"});
                   if (wFilename.getText() != null) {
                     String fname = variables.resolve(wFilename.getText());
                     dialog.setFileName(fname);
@@ -1075,7 +1075,7 @@ public class ReadExcelHeaderDialog extends BaseTransformDialog implements ITrans
 
     if (metaData.getFileName() != null) {
 
-      //System.console().printf("Filename is not null");
+      System.console().printf("Filename is not null");
       //System.console().printf("Filename length" + metaData.getFileName().length);
 
       wFilenameList.removeAll();
@@ -1083,9 +1083,11 @@ public class ReadExcelHeaderDialog extends BaseTransformDialog implements ITrans
         //System.console().printf("Filename : " + metaData.getFileName()[i]);
         //System.console().printf("Filemask : " + metaData.getFileMask()[i]);
 
+        System.console().printf("Adding file");
         wFilenameList.add(metaData.getFileName()[i], metaData.getFileMask()[i],
                 metaData.getExcludeFileMask()[i], metaData.getRequiredFilesDesc(metaData.getFileRequired()[i]),
                 metaData.getRequiredFilesDesc(metaData.getIncludeSubFolders()[i]));
+        System.console().printf("End of adding file loop");
       }
       wFilenameList.removeEmptyRows();
       wFilenameList.setRowNums();
